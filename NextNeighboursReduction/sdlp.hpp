@@ -23,6 +23,13 @@
  *      doi:10.1007/BF02574699
  */
 
+/*
+ * Alexei Rusu  
+ * Remove the templates (replacing the tempalte paramter d with function arguments) 
+ * and use dynamic size Eigen matrices, to allow using the code with dynamic 
+ * dimensionalty.
+ */
+
 #ifndef SDLP_HPP
 #define SDLP_HPP
 
@@ -73,8 +80,7 @@ namespace sdlp
     }
 
     /* unitize a d + 1 dimensional point */
-    template <int d>
-    inline bool unit(double *a)
+    inline bool unit(double *a, const int d)
     {
         double mag = 0.0;
         for (int i = 0; i <= d; i++)
@@ -94,10 +100,10 @@ namespace sdlp
     }
 
     /* optimize the unconstrained objective */
-    template <int d>
     inline int lp_no_con(const double *n_vec,
                          const double *d_vec,
-                         double *opt)
+                         double *opt,
+                         const int d)
     {
         double n_dot_d = 0.0;
         double d_dot_d = 0.0;
@@ -117,7 +123,7 @@ namespace sdlp
                      d_vec[i] * n_dot_d / d_dot_d;
         }
         /* normalize the optimal point */
-        if (unit<d>(opt))
+        if (unit(opt, d))
         {
             opt[d] = 1.0;
             return AMBIGUOUS;
@@ -397,7 +403,7 @@ namespace sdlp
         /* no non-trivial constraints one the plane: return the unconstrained optimum */
         if (status == UNBOUNDED)
         {
-            return lp_no_con<1>(n_vec, d_vec, opt);
+            return lp_no_con(n_vec, d_vec, opt, 1);
         }
 
         if (std::fabs(cross2(n_vec, d_vec)) < 2.0 * eps * eps)
@@ -446,9 +452,9 @@ namespace sdlp
     }
 
     /* find the largest coefficient in a plane */
-    template <int d>
     inline void findimax(const double *pln,
-                         int *imax)
+                         int *imax,
+                         const int d)
     {
         *imax = 0;
         double rmax = std::fabs(pln[0]);
@@ -463,11 +469,11 @@ namespace sdlp
         }
     }
 
-    template <int d>
     inline void vector_up(const double *equation,
                           const int ivar,
                           const double *low_vector,
-                          double *vector)
+                          double *vector,
+                          const int d)
     {
         vector[ivar] = 0.0;
         for (int i = 0; i <= d; i++)
@@ -482,11 +488,11 @@ namespace sdlp
         vector[ivar] /= equation[ivar];
     }
 
-    template <int d>
     inline void vector_down(const double *elim_eqn,
                             const int ivar,
                             const double *old_vec,
-                            double *new_vec)
+                            double *new_vec,
+                            const int d)
     {
         double ve = 0.0;
         double ee = 0.0;
@@ -506,11 +512,11 @@ namespace sdlp
         }
     }
 
-    template <int d>
     inline void plane_down(const double *elim_eqn,
                            const int ivar,
                            const double *old_plane,
-                           double *new_plane)
+                           double *new_plane,
+                           const int d)
     {
         const double crit = old_plane[ivar] / elim_eqn[ivar];
         for (int i = 0; i <= d; i++)
@@ -523,7 +529,6 @@ namespace sdlp
         }
     }
 
-    template <int d>
     inline int linfracprog(const double *halves, /* halves  --- half spaces */
                            const int max_size,   /* max_size --- size of halves array */
                            const int m,          /* m       --- terminal marker */
@@ -532,7 +537,8 @@ namespace sdlp
                            double *opt,          /* opt     --- optimum */
                            double *work,         /* work    --- work space (see below) */
                            int *next,            /* next    --- array of indices into halves */
-                           int *prev)            /* prev    --- array of indices into halves */
+                           int *prev,            /* prev    --- array of indices into halves */
+                           const int d)
     /*
     **
     ** half-spaces are in the form
@@ -562,6 +568,18 @@ namespace sdlp
     ** work points to (max_size+3)*(d+2)*(d-1)/2 double space
     */
     {
+        if (d == 1) {
+            if (m > 0)
+            {
+                return lp_base_case((const double(*)[2])halves, m,
+                    n_vec, d_vec, opt, next, prev);
+            }
+            else
+            {
+                return lp_no_con(n_vec, d_vec, opt, 1);
+            }
+        }
+
         int status, imax;
         double *new_opt, *new_n_vec, *new_d_vec, *new_halves, *new_work;
         const double *plane_i;
@@ -574,7 +592,7 @@ namespace sdlp
         const bool d_vec_zero = (val < (d + 1) * eps * eps);
 
         /* find the unconstrained minimum */
-        status = lp_no_con<d>(n_vec, d_vec, opt);
+        status = lp_no_con(n_vec, d_vec, opt, d);
         if (m <= 0)
         {
             return status;
@@ -599,7 +617,7 @@ namespace sdlp
             if (val < -(d + 1) * eps)
             {
                 /* find the largest of the coefficients to eliminate */
-                findimax<d>(plane_i, &imax);
+                findimax(plane_i, &imax, d);
                 /* eliminate that variable */
                 if (i != 0)
                 {
@@ -619,7 +637,7 @@ namespace sdlp
                 /* project the objective function to lower dimension */
                 if (d_vec_zero)
                 {
-                    vector_down<d>(plane_i, imax, n_vec, new_n_vec);
+                    vector_down(plane_i, imax, n_vec, new_n_vec, d);
                     for (int j = 0; j < d; j++)
                     {
                         new_d_vec[j] = 0.0;
@@ -627,16 +645,16 @@ namespace sdlp
                 }
                 else
                 {
-                    plane_down<d>(plane_i, imax, n_vec, new_n_vec);
-                    plane_down<d>(plane_i, imax, d_vec, new_d_vec);
+                    plane_down(plane_i, imax, n_vec, new_n_vec, d);
+                    plane_down(plane_i, imax, d_vec, new_d_vec, d);
                 }
                 /* solve sub problem */
-                status = linfracprog<d - 1>(new_halves, max_size, i, new_n_vec,
-                                            new_d_vec, new_opt, new_work, next, prev);
+                status = linfracprog(new_halves, max_size, i, new_n_vec,
+                                            new_d_vec, new_opt, new_work, next, prev, d - 1);
                 /* back substitution */
                 if (status != INFEASIBLE)
                 {
-                    vector_up<d>(plane_i, imax, new_opt, opt);
+                    vector_up(plane_i, imax, new_opt, opt, d);
 
                     /* inline code for unit */
                     double mag = 0.0;
@@ -661,28 +679,6 @@ namespace sdlp
         return status;
     }
 
-    template <>
-    inline int linfracprog<1>(const double *halves,
-                              const int max_size,
-                              const int m,
-                              const double *n_vec,
-                              const double *d_vec,
-                              double *opt,
-                              double *work,
-                              int *next,
-                              int *prev)
-    {
-        if (m > 0)
-        {
-            return lp_base_case((const double(*)[2])halves, m,
-                                n_vec, d_vec, opt, next, prev);
-        }
-        else
-        {
-            return lp_no_con<1>(n_vec, d_vec, opt);
-        }
-    }
-
     inline void rand_permutation(const int n,
                                  int *p)
     {
@@ -705,11 +701,11 @@ namespace sdlp
         }
     }
 
-    template <int d>
-    inline double linprog(const Eigen::Matrix<double, d, 1> &c,
-                          const Eigen::Matrix<double, -1, d> &A,
+    inline double linprog(const Eigen::Matrix<double, -1, 1> &c,
+                          const Eigen::Matrix<double, -1, -1> &A,
                           const Eigen::Matrix<double, -1, 1> &b,
-                          Eigen::Matrix<double, d, 1> &x)
+                          Eigen::Matrix<double, -1, 1> &x,
+                          const int d)
     /*
     **  min cTx, s.t. Ax<=b
     **  dim(x) << dim(b)
@@ -726,10 +722,10 @@ namespace sdlp
         Eigen::VectorXi next(m);
         /* original allocated size is m, here changed to m + 1 for legal tail accessing */
         Eigen::VectorXi prev(m + 1);
-        Eigen::Matrix<double, d + 1, 1> n_vec;
-        Eigen::Matrix<double, d + 1, 1> d_vec;
-        Eigen::Matrix<double, d + 1, 1> opt;
-        Eigen::Matrix<double, d + 1, -1, Eigen::ColMajor> halves(d + 1, m);
+        Eigen::Matrix<double, -1, 1> n_vec(d + 1, 1);
+        Eigen::Matrix<double, -1, 1> d_vec(d + 1, 1);
+        Eigen::Matrix<double, -1, 1> opt(d + 1, 1);
+        Eigen::Matrix<double, -1, -1, Eigen::ColMajor> halves(d + 1, m);
         Eigen::VectorXd work((m + 3) * (d + 2) * (d - 1) / 2);
 
         halves.col(0).setZero();
@@ -759,10 +755,10 @@ namespace sdlp
         /* flag the last plane */
         next(perm(m - 2) + 1) = m;
 
-        int status = sdlp::linfracprog<d>(halves.data(), m, m,
+        int status = sdlp::linfracprog(halves.data(), m, m,
                                           n_vec.data(), d_vec.data(),
                                           opt.data(), work.data(),
-                                          next.data(), prev.data());
+                                          next.data(), prev.data(), d);
 
         /* handle states for linprog whose definitions differ from linfracprog */
         double minimum = INFINITY;
