@@ -8,6 +8,8 @@
 using namespace std;
 using namespace Eigen;
 
+const double eps = 1.0e-10;
+
 void read_dataset(vector<vector<double>>& dataset, vector<int>& labels) {
     
     ifstream in_file("winequality-white.csv");
@@ -28,6 +30,37 @@ void read_dataset(vector<vector<double>>& dataset, vector<int>& labels) {
     }
 }
 
+bool find_witness_vector(vector<double> p, vector<vector<double>> q, vector<double>& v) {
+
+    static const int vars = p.size();
+    int constraints = q.size();
+
+    Eigen::Matrix<double, Dynamic, 1> x(vars, 1);                 // decision variables
+    Eigen::Matrix<double, Dynamic, 1> c(vars, 1);                 // objective coefficients
+    Eigen::Matrix<double, Dynamic, Dynamic> A(constraints, vars); // constraint matrix
+    Eigen::VectorXd b(constraints);                               // constraint bounds
+
+    // the objective coefficients do not matter, any feasible solution is ok
+    for (long i = 0; i < vars; i++) c(i) = 0; 
+    // adding a small epsilon as constraint bound, as we look for strict inequality,
+    // while the solver solves with non strict inequalities in the constraints ( < 0 replaced by <= -eps)
+    for (long i = 0; i < constraints; i++) b(i) = -eps;
+    for (long row = 0; row < constraints; row++) {
+        for (long col = 0; col < vars; col++) {
+            // coefficients for v q - v p < 0 
+            A(row, col) = q[row][col] - p[col];
+        }
+    }
+
+    double objective = sdlp::linprog(c, A, b, x, vars);
+
+    if (objective == INFINITY) return false; // infeasible LP problem
+
+    for (long i = 0; i < vars; i++) v.push_back(x(i, 1));
+
+    return true;
+}
+
 int main() {
 
     vector<vector<double>> dataset;
@@ -40,39 +73,33 @@ int main() {
         cout << labels[i] << "\n";
     }*/
 
-    int m = 2 * 7;
-    Eigen::Matrix<double, -1, 1> x(7, 1);        // decision variables
-    Eigen::Matrix<double, -1, 1> c(7, 1);        // objective coefficients
-    Eigen::Matrix<double, -1, 7> A(m, 7); // constraint matrix
-    Eigen::VectorXd b(m);                 // constraint bound
+    vector<vector<double>> q;
+    q.push_back({ 1, 1, 1 });
+    q.push_back({ 1, 1, 2 });
+    q.push_back({ 1, 2, 1 });
+    q.push_back({ 2, 1, 1 });
+    q.push_back({ 1, 2, 2 });
+    q.push_back({ 2, 1, 2 });
+    q.push_back({ 2, 2, 1 });
+    q.push_back({ 2, 2, 2 });
 
-    c << 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0;
-    A << 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-        -1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        0.0, -1.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0,
-        0.0, 0.0, 0.0, 0.0, 0.0, -1.0, 0.0,
-        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, -1.0;
-    b << 6.0, 5.0, 4.0, 3.0, 2.0, 1.0, 0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0;
+    vector<double> v;
 
-    double minobj = sdlp::linprog(c, A, b, x, 7);
+    bool feasible = find_witness_vector({1.5, 1.5, 1.5}, q, v);
 
-    std::cout << "prob:\n"
-        << std::endl;
-    std::cout << "     min x1 + ... + x7," << std::endl;
-    std::cout << "     s.t. x1 <=  6,  x2 <=  5, ..., x7 <= 0," << std::endl;
-    std::cout << "          x1 >= -1,  x2 >= -2,  ..., x7 >= -7.\n"
-        << std::endl;
-    std::cout << "optimal sol: " << x.transpose() << std::endl;
-    std::cout << "optimal obj: " << minobj << std::endl;
+    cout << "feasible: " << feasible << "\n";
+    if (feasible) {
+        for (long i = 0; i < v.size(); i++) cout << v[i] << " ";
+        cout << "\n";
+    }
+
+    feasible = find_witness_vector({ 0, 0, 0 }, q, v);
+
+    cout << "feasible: " << feasible << "\n";
+    if (feasible) {
+        for (long i = 0; i < v.size(); i++) cout << v[i] << " ";
+        cout << "\n";
+    }
 
     return 0;
 }
