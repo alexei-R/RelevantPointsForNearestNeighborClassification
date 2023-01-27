@@ -30,7 +30,7 @@ void read_dataset(vector<vector<double>>& dataset, vector<int>& labels) {
     }
 }
 
-bool find_witness_vector(vector<double> p, vector<vector<double>> q, vector<double>& v) {
+bool find_witness_vector(vector<double>& p, vector<vector<double>>& q, vector<double>& v) {
 
     static const int vars = p.size();
     int constraints = q.size();
@@ -56,9 +56,66 @@ bool find_witness_vector(vector<double> p, vector<vector<double>> q, vector<doub
 
     if (objective == INFINITY) return false; // infeasible LP problem
 
-    for (long i = 0; i < vars; i++) v.push_back(x(i, 1));
+    double norm = 0;
+    for (long i = 0; i < vars; i++) {
+        v.push_back(x(i, 1));
+        norm += v[i] * v[i];
+    }
+    norm = sqrt(norm);
+    for (long i = 0; i < v.size(); i++) v[i] /= norm; // scale to unit vector
 
     return true;
+}
+
+double dot_product(vector<double>& p, vector<double>& q) {
+    
+    double res = 0;
+    for (long i = 0; i < p.size(); i++) res += p[i] * q[i];
+    return res;
+}
+
+int find_extreme_point_from_witness_vector(vector<vector<double>>& dataset, vector<bool>& is_extreme, vector<double>& witness) {
+    int imax = 0;
+    double valmax = 0;
+    
+    for (long i = 0; i < dataset.size(); i++) {
+        double prod = dot_product(witness, dataset[i]);
+        // initialize or capture new maximum or pick a point not already identified as extreme in case of a tie (within epsilon interval)
+        if (i == 0 || prod > valmax + eps || (!(prod < valmax - eps) && is_extreme[imax])) {
+            imax = i;
+            valmax = prod;
+        }
+    }
+
+    return imax;
+}
+
+void find_extreme_points(vector<vector<double>>& dataset, vector<int>& extreme_point_indices) {
+
+    int d = dataset[0].size();
+    vector<bool> is_extreme(dataset.size(), false);
+    // the first witness vector can be arbitrary
+    vector<double> witness(d, 0);
+    witness[0] = 1;
+    vector<vector<double>> extreme_points;
+
+    int imax = find_extreme_point_from_witness_vector(dataset, is_extreme, witness);
+    extreme_points.push_back(dataset[imax]);
+    is_extreme[imax] = true;
+
+    for (long i = 0; i < dataset.size(); i++) {
+        witness.clear();      
+        bool feasible = find_witness_vector(dataset[i], extreme_points, witness);
+        if (feasible) {
+            int imax = find_extreme_point_from_witness_vector(dataset, is_extreme, witness);
+            if (!is_extreme[imax]) extreme_points.push_back(dataset[imax]);
+            is_extreme[imax] = true;
+        }
+    }
+
+    for (long i = 0; i < is_extreme.size(); i++) {
+        if (is_extreme[i]) extreme_point_indices.push_back(i);
+    }
 }
 
 int main() {
@@ -74,32 +131,45 @@ int main() {
     }*/
 
     vector<vector<double>> q;
+    // points inside
+    q.push_back({ 2, 2, 1 });
+    q.push_back({ 1.5, 1.5, 1 });
+    q.push_back({ 2.5, 2.5, 1 });
+    q.push_back({ 2.25, 1.75, 1 });
+    q.push_back({ 1.75, 2.25, 1 });
+    q.push_back({ 2, 2, 1.5 });
+    q.push_back({ 1.5, 1.5, 1.5 });
+    q.push_back({ 2.5, 2.5, 1.5 });
+    q.push_back({ 2.25, 1.75, 1.5 });
+    q.push_back({ 1.75, 2.25, 1.5 });
+    q.push_back({ 2, 2, 2 });
+    q.push_back({ 1.5, 1.5, 2 });
+    q.push_back({ 2.5, 2.5, 2 });
+    q.push_back({ 2.25, 1.75, 2 });
+    q.push_back({ 1.75, 2.25, 2 });
+    q.push_back({ 2, 2, 0.5 });
+    q.push_back({ 2, 2, 2.5 });
+    // points from the convex hull
     q.push_back({ 1, 1, 1 });
-    q.push_back({ 1, 1, 2 });
     q.push_back({ 1, 2, 1 });
     q.push_back({ 2, 1, 1 });
+    q.push_back({ 2, 3, 1 });
+    q.push_back({ 3, 2, 1 });
+    q.push_back({ 3, 3, 1 });
+    q.push_back({ 1, 1, 2 });
     q.push_back({ 1, 2, 2 });
     q.push_back({ 2, 1, 2 });
-    q.push_back({ 2, 2, 1 });
-    q.push_back({ 2, 2, 2 });
+    q.push_back({ 2, 3, 2 });
+    q.push_back({ 3, 2, 2 });
+    q.push_back({ 3, 3, 2 });
+    q.push_back({ 2, 2, 0 });
+    q.push_back({ 2, 2, 3 });
 
-    vector<double> v;
+    vector<int> indices;
+    find_extreme_points(q, indices);
 
-    bool feasible = find_witness_vector({1.5, 1.5, 1.5}, q, v);
-
-    cout << "feasible: " << feasible << "\n";
-    if (feasible) {
-        for (long i = 0; i < v.size(); i++) cout << v[i] << " ";
-        cout << "\n";
-    }
-
-    feasible = find_witness_vector({ 0, 0, 0 }, q, v);
-
-    cout << "feasible: " << feasible << "\n";
-    if (feasible) {
-        for (long i = 0; i < v.size(); i++) cout << v[i] << " ";
-        cout << "\n";
-    }
+    for (long i = 0; i < indices.size(); i++) cout << indices[i] << " ";
+    cout << "\n";
 
     return 0;
 }
