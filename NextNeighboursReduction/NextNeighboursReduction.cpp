@@ -118,6 +118,34 @@ void find_extreme_points(vector<vector<double>>& dataset, vector<int>& extreme_p
     }
 }
 
+void invert_wrt_sphere(vector<vector<double>>& dataset, int center_index, vector<vector<double>>& inverted_dataset) {
+
+    for (long i = 0; i < dataset.size(); i++) {
+        inverted_dataset.push_back(dataset[i]);
+        if (i != center_index) {
+            // shift the origin of the coordinate system to the center of the sphere
+            for (long j = 0; j < dataset[i].size(); j++)
+                inverted_dataset[i][j] = dataset[i][j] - dataset[center_index][j];
+
+            // get the norm of the vector pointing to the original point
+            double norm = 0;
+            for (long j = 0; j < dataset[i].size(); j++)
+                norm += inverted_dataset[i][j] * inverted_dataset[i][j];
+            norm = sqrt(norm);
+
+            // get the norm of the vector pointing to the inverted point
+            double norm_inverted = 1 / norm; // sphere radius = 1
+            // get the coordinates of the inverted point
+            for (long j = 0; j < dataset[i].size(); j++)
+                inverted_dataset[i][j] = inverted_dataset[i][j] * norm_inverted / norm;
+
+            // shift the coordinate system back
+            for (long j = 0; j < dataset[i].size(); j++)
+                inverted_dataset[i][j] += dataset[center_index][j];
+        }
+    }
+}
+
 int main() {
 
     vector<vector<double>> dataset;
@@ -170,6 +198,17 @@ int main() {
 
     for (long i = 0; i < indices.size(); i++) cout << indices[i] << " ";
     cout << "\n";
+
+    vector<vector<double>> inverted;
+    invert_wrt_sphere(q, 17, inverted);
+
+    for (long i = 0; i < q.size(); i++) {
+        cout << "original:";
+        for (long j = 0; j < q[i].size(); j++) cout << " " << q[i][j];
+        cout << " inverted:";
+        for (long j = 0; j < q[i].size(); j++) cout << " " << inverted[i][j];
+        cout << "\n";
+    }
 
     return 0;
 }
