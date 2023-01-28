@@ -201,6 +201,56 @@ void flores_velazco(vector<vector<double>>& dataset, vector<int>& labels, vector
     }
 }
 
+double square_euclidian_distance(vector<double>& a, vector<double>& b) {
+    double square_dist = 0;
+    for (long i = 0; i < a.size(); i++) {
+        double diff = a[i] - b[i];
+        square_dist += diff * diff;
+    }
+    return square_dist;
+}
+
+void jarnik_prim_euclidian_mst(vector<vector<double>>& dataset, vector<vector<int>>& mst_edges) {
+    vector<bool> visited(dataset.size(), false);
+    vector<bool> reachable(dataset.size(), false);
+    vector<double> cost(dataset.size(), 0);
+    vector<int> cost_from_which_neighbour(dataset.size(), -1);
+    
+    // start from arbitrary point
+    reachable[0] = true;
+    cost[0] = 0;
+
+    // add edges one by one according to priority
+    for (long k = 0; k < dataset.size(); k++) {
+        // look for the node with the smallest cost of inclusion to the tree
+        bool found_reachable = false;
+        double min_cost = 0;
+        int min_index = 0;
+        for (long i = 0; i < dataset.size(); i++) {
+            if (!visited[i] && reachable[i] && (!found_reachable || cost[i] < min_cost)) {
+                min_cost = cost[i];
+                min_index = i;
+                found_reachable = true;
+            }
+        }
+        // visit found node and capture the edge added to the MST
+        visited[min_index] = true;
+        if (cost_from_which_neighbour[min_index] != -1) 
+            mst_edges.push_back({ cost_from_which_neighbour[min_index], min_index});
+        // update the neighbours
+        for (long i = 0; i < dataset.size(); i++) {
+            if (!visited[i]) {
+                double square_dist = square_euclidian_distance(dataset[i], dataset[min_index]);
+                if (!reachable[i] || square_dist < cost[i]) {
+                    cost[i] = square_dist;
+                    cost_from_which_neighbour[i] = min_index;
+                    reachable[i] = true;
+                }
+            }
+        }
+    }
+}
+
 int main() {
 
     vector<vector<double>> dataset;
@@ -250,7 +300,7 @@ int main() {
 
     vector<int> indices;
     find_extreme_points(q, indices);
-
+    cout << "extreme points:\n";
     for (long i = 0; i < indices.size(); i++) cout << indices[i] << " ";
     cout << "\n";
 
@@ -271,7 +321,16 @@ int main() {
     vector<int> boundary_point_indices;
     flores_velazco(q, qlabels, boundary_point_indices);
     sort(boundary_point_indices.begin(), boundary_point_indices.end());
+    cout << "Flores-Velazco boundary points:\n";
     for (long i = 0; i < boundary_point_indices.size(); i++) cout << boundary_point_indices[i] << " ";
+    cout << "\n";
+
+    vector<vector<int>> mst_edges;
+    jarnik_prim_euclidian_mst(q, mst_edges);
+    cout << "MST edges:\n";
+    for (long i = 0; i < mst_edges.size(); i++) {
+        cout << mst_edges[i][0] << " " << mst_edges[i][1] << "\n";
+    }
     cout << "\n";
 
     return 0;
