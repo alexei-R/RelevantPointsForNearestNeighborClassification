@@ -146,10 +146,59 @@ void invert_wrt_sphere(vector<vector<double>>& dataset, int center_index, vector
     }
 }
 
-void find_boundary_points_from_inversion(vector<vector<double>>& dataset, int center_index, vector<int>& boundary_point_indices) {
+void find_boundary_points_from_inversion(vector<vector<double>>& dataset, vector<int>& labels, int center_index, vector<int>& boundary_point_indices) {
+    
+    // remove points of the same class as the center point
+    vector<vector<double>> reduced_dataset;
+    vector<int> index_mapping(dataset.size(), -1);
+    int new_center;
+    for (long i = 0; i < dataset.size(); i++) {
+        if (i == center_index) new_center = reduced_dataset.size();
+        if (labels[i] != labels[center_index] || i == center_index) {
+            index_mapping[reduced_dataset.size()] = i;
+            reduced_dataset.push_back(dataset[i]);
+        }             
+    }
+    // find the extreme points of the inverted set
     vector<vector<double>> inverted_dataset;
-    invert_wrt_sphere(dataset, center_index, inverted_dataset);
-    find_extreme_points(inverted_dataset, boundary_point_indices);
+    invert_wrt_sphere(reduced_dataset, new_center, inverted_dataset);
+    vector<int> extreme_point_indices;
+    find_extreme_points(inverted_dataset, extreme_point_indices);
+
+    // restore the original indices
+    for (long i = 0; i < extreme_point_indices.size(); i++) {
+        if (extreme_point_indices[i] != new_center)
+            boundary_point_indices.push_back(index_mapping[extreme_point_indices[i]]);
+    }       
+}
+
+void capture_new_boundary_points_from_inversion_step(
+    vector<vector<double>>& dataset,
+    vector<int>& labels,
+    int center_index,
+    vector<bool>& is_boundary_point,
+    vector<int>& boundary_point_indices) {
+
+    vector<int> boundary_point_indices_from_one_step;
+    find_boundary_points_from_inversion(dataset, labels, center_index, boundary_point_indices_from_one_step);
+    for (long i = 0; i < boundary_point_indices_from_one_step.size(); i++) {
+        // skip points already found before, to avoid duplicates
+        if (!is_boundary_point[boundary_point_indices_from_one_step[i]]) {
+            is_boundary_point[boundary_point_indices_from_one_step[i]] = true;
+            boundary_point_indices.push_back(boundary_point_indices_from_one_step[i]);
+        }
+    }
+}
+
+void flores_velazco(vector<vector<double>>& dataset, vector<int>& labels, vector<int>& boundary_point_indices) {
+    vector<bool> is_boundary_point(dataset.size(), false);
+    // the first inversion center point can be arbitrary
+    capture_new_boundary_points_from_inversion_step(dataset, labels, 0, is_boundary_point, boundary_point_indices);
+
+    // loop through the boundary points
+    for (long i = 0; i < boundary_point_indices.size(); i++) {
+        capture_new_boundary_points_from_inversion_step(dataset, labels, boundary_point_indices[i], is_boundary_point, boundary_point_indices);
+    }
 }
 
 int main() {
@@ -216,9 +265,12 @@ int main() {
         cout << "\n";
     }
 
-    vector<int> boundary_point_indices;
-    find_boundary_points_from_inversion(q, 16, boundary_point_indices);
+    vector<int> qlabels(q.size(), 1);
+    qlabels[29] = 2; qlabels[30] = 2;
 
+    vector<int> boundary_point_indices;
+    flores_velazco(q, qlabels, boundary_point_indices);
+    sort(boundary_point_indices.begin(), boundary_point_indices.end());
     for (long i = 0; i < boundary_point_indices.size(); i++) cout << boundary_point_indices[i] << " ";
     cout << "\n";
 
