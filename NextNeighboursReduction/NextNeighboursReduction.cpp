@@ -146,6 +146,12 @@ void invert_wrt_sphere(vector<vector<double>>& dataset, int center_index, vector
     }
 }
 
+void find_boundary_points_from_inversion(vector<vector<double>>& dataset, int center_index, vector<int>& boundary_point_indices) {
+    vector<vector<double>> inverted_dataset;
+    invert_wrt_sphere(dataset, center_index, inverted_dataset);
+    find_extreme_points(inverted_dataset, boundary_point_indices);
+}
+
 int main() {
 
     vector<vector<double>> dataset;
@@ -209,6 +215,12 @@ int main() {
         for (long j = 0; j < q[i].size(); j++) cout << " " << inverted[i][j];
         cout << "\n";
     }
+
+    vector<int> boundary_point_indices;
+    find_boundary_points_from_inversion(q, 16, boundary_point_indices);
+
+    for (long i = 0; i < boundary_point_indices.size(); i++) cout << boundary_point_indices[i] << " ";
+    cout << "\n";
 
     return 0;
 }
