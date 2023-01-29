@@ -251,6 +251,28 @@ void jarnik_prim_euclidian_mst(vector<vector<double>>& dataset, vector<vector<in
     }
 }
 
+void eppstein(vector<vector<double>>& dataset, vector<int>& labels, vector<int>& boundary_point_indices) {
+    // initial phase calculating boundary point pairs based on the MST
+    vector<bool> is_boundary_point(dataset.size(), false);
+    vector<vector<int>> mst_edges;
+    jarnik_prim_euclidian_mst(dataset, mst_edges);
+    for (long i = 0; i < mst_edges.size(); i++) {
+        if (labels[mst_edges[i][0]] != labels[mst_edges[i][1]]) {
+            for (long j = 0; j < 2; j++) {
+                if (!is_boundary_point[mst_edges[i][j]]) {
+                    is_boundary_point[mst_edges[i][j]] = true;
+                    boundary_point_indices.push_back(mst_edges[i][j]);
+                }
+            }
+        }
+    }
+
+    // loop through the boundary points
+    for (long i = 0; i < boundary_point_indices.size(); i++) {
+        capture_new_boundary_points_from_inversion_step(dataset, labels, boundary_point_indices[i], is_boundary_point, boundary_point_indices);
+    }
+}
+
 int main() {
 
     vector<vector<double>> dataset;
@@ -298,15 +320,16 @@ int main() {
     q.push_back({ 2, 2, 0 });
     q.push_back({ 2, 2, 3 });
 
+
     vector<int> indices;
     find_extreme_points(q, indices);
     cout << "extreme points:\n";
     for (long i = 0; i < indices.size(); i++) cout << indices[i] << " ";
     cout << "\n";
-
+    
     vector<vector<double>> inverted;
     invert_wrt_sphere(q, 17, inverted);
-
+    cout << "Inverted dataset:\n";
     for (long i = 0; i < q.size(); i++) {
         cout << "original:";
         for (long j = 0; j < q[i].size(); j++) cout << " " << q[i][j];
@@ -315,8 +338,18 @@ int main() {
         cout << "\n";
     }
 
+    vector<vector<int>> mst_edges;
+    jarnik_prim_euclidian_mst(q, mst_edges);
+    cout << "MST edges:\n";
+    for (long i = 0; i < mst_edges.size(); i++) {
+        cout << mst_edges[i][0] << " " << mst_edges[i][1] << "\n";
+    }
+    cout << "\n";
+
     vector<int> qlabels(q.size(), 1);
-    qlabels[29] = 2; qlabels[30] = 2;
+    for (long i = 0; i < 5; i++) qlabels[i] = 2;
+    for (long i = 17; i < 23; i++) qlabels[i] = 2;
+    qlabels[15] = 2; qlabels[29] = 2;
 
     vector<int> boundary_point_indices;
     flores_velazco(q, qlabels, boundary_point_indices);
@@ -325,12 +358,11 @@ int main() {
     for (long i = 0; i < boundary_point_indices.size(); i++) cout << boundary_point_indices[i] << " ";
     cout << "\n";
 
-    vector<vector<int>> mst_edges;
-    jarnik_prim_euclidian_mst(q, mst_edges);
-    cout << "MST edges:\n";
-    for (long i = 0; i < mst_edges.size(); i++) {
-        cout << mst_edges[i][0] << " " << mst_edges[i][1] << "\n";
-    }
+    boundary_point_indices.clear();
+    eppstein(q, qlabels, boundary_point_indices);
+    sort(boundary_point_indices.begin(), boundary_point_indices.end());
+    cout << "Eppstein boundary points:\n";
+    for (long i = 0; i < boundary_point_indices.size(); i++) cout << boundary_point_indices[i] << " ";
     cout << "\n";
 
     return 0;
