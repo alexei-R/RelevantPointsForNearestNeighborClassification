@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <chrono>
 
 #include "sdlp.hpp"
 
@@ -273,97 +274,60 @@ void eppstein(vector<vector<double>>& dataset, vector<int>& labels, vector<int>&
     }
 }
 
-int main() {
+void trim_dataset_dimensionality(vector<vector<double>>& dataset, int d, vector<vector<double>>& trimmed_dataset) {
+    for (long i = 0; i < dataset.size(); i++) {
+        vector<double> trimmed_datapoint;
+        for (long j = 0; j < d; j++) trimmed_datapoint.push_back(dataset[i][j]);
+        trimmed_dataset.push_back(trimmed_datapoint);
+    }
+}
+
+void dataset_portion(vector<vector<double>>& dataset, int n, vector<vector<double>>& partial_dataset) {
+    for (long i = 0; i < dataset.size() && i < n; i++) {
+        partial_dataset.push_back(dataset[i]);
+    }
+}
+
+// class frequencies:
+// label:    0    1    2    3    4    5    6    7    8    9   10
+// freq:     0    0    0   20  163 1457 2198  880  175    5    0
+void consolidate_labels(vector<int>& labels) {
+    for (long i = 0; i < labels.size(); i++) {
+        if (labels[i] < 5) labels[i] = 1;
+        else if (labels[i] < 8) labels[i] = 2;
+        else labels[i] = 3;
+    }
+}
+
+int main(int argc, const char** argv) {
 
     vector<vector<double>> dataset;
     vector<int> labels;
-
     read_dataset(dataset, labels);
 
-    /*for (long i = 0; i < dataset.size(); i++) {
-        for (long j = 0; j < dataset[i].size(); j++) cout << dataset[i][j] << " ";
-        cout << labels[i] << "\n";
-    }*/
+    int n = atoi(argv[1]);
+    int d = atoi(argv[2]);
+    int consolidate = atoi(argv[3]);
 
-    vector<vector<double>> q;
-    // points inside
-    q.push_back({ 2, 2, 1 });
-    q.push_back({ 1.5, 1.5, 1 });
-    q.push_back({ 2.5, 2.5, 1 });
-    q.push_back({ 2.25, 1.75, 1 });
-    q.push_back({ 1.75, 2.25, 1 });
-    q.push_back({ 2, 2, 1.5 });
-    q.push_back({ 1.5, 1.5, 1.5 });
-    q.push_back({ 2.5, 2.5, 1.5 });
-    q.push_back({ 2.25, 1.75, 1.5 });
-    q.push_back({ 1.75, 2.25, 1.5 });
-    q.push_back({ 2, 2, 2 });
-    q.push_back({ 1.5, 1.5, 2 });
-    q.push_back({ 2.5, 2.5, 2 });
-    q.push_back({ 2.25, 1.75, 2 });
-    q.push_back({ 1.75, 2.25, 2 });
-    q.push_back({ 2, 2, 0.5 });
-    q.push_back({ 2, 2, 2.5 });
-    // points from the convex hull
-    q.push_back({ 1, 1, 1 });
-    q.push_back({ 1, 2, 1 });
-    q.push_back({ 2, 1, 1 });
-    q.push_back({ 2, 3, 1 });
-    q.push_back({ 3, 2, 1 });
-    q.push_back({ 3, 3, 1 });
-    q.push_back({ 1, 1, 2 });
-    q.push_back({ 1, 2, 2 });
-    q.push_back({ 2, 1, 2 });
-    q.push_back({ 2, 3, 2 });
-    q.push_back({ 3, 2, 2 });
-    q.push_back({ 3, 3, 2 });
-    q.push_back({ 2, 2, 0 });
-    q.push_back({ 2, 2, 3 });
-
-
-    vector<int> indices;
-    find_extreme_points(q, indices);
-    cout << "extreme points:\n";
-    for (long i = 0; i < indices.size(); i++) cout << indices[i] << " ";
-    cout << "\n";
-    
-    vector<vector<double>> inverted;
-    invert_wrt_sphere(q, 17, inverted);
-    cout << "Inverted dataset:\n";
-    for (long i = 0; i < q.size(); i++) {
-        cout << "original:";
-        for (long j = 0; j < q[i].size(); j++) cout << " " << q[i][j];
-        cout << " inverted:";
-        for (long j = 0; j < q[i].size(); j++) cout << " " << inverted[i][j];
-        cout << "\n";
-    }
-
-    vector<vector<int>> mst_edges;
-    jarnik_prim_euclidian_mst(q, mst_edges);
-    cout << "MST edges:\n";
-    for (long i = 0; i < mst_edges.size(); i++) {
-        cout << mst_edges[i][0] << " " << mst_edges[i][1] << "\n";
-    }
-    cout << "\n";
-
-    vector<int> qlabels(q.size(), 1);
-    for (long i = 0; i < 5; i++) qlabels[i] = 2;
-    for (long i = 17; i < 23; i++) qlabels[i] = 2;
-    qlabels[15] = 2; qlabels[29] = 2;
+    vector<vector<double>> partial_dataset;
+    dataset_portion(dataset, n, partial_dataset);
+    vector<vector<double>> trimmed_dataset;
+    trim_dataset_dimensionality(partial_dataset, d, trimmed_dataset);
+    if (consolidate) consolidate_labels(labels);
 
     vector<int> boundary_point_indices;
-    flores_velazco(q, qlabels, boundary_point_indices);
-    sort(boundary_point_indices.begin(), boundary_point_indices.end());
-    cout << "Flores-Velazco boundary points:\n";
-    for (long i = 0; i < boundary_point_indices.size(); i++) cout << boundary_point_indices[i] << " ";
-    cout << "\n";
-
+    cout << trimmed_dataset.size() << ";" << trimmed_dataset[0].size() << ";" << consolidate << ";";
+    auto start = chrono::high_resolution_clock::now();
+    flores_velazco(trimmed_dataset, labels, boundary_point_indices);
+    auto end = chrono::high_resolution_clock::now();
+    auto elapsed = chrono::duration_cast<chrono::milliseconds>(end - start);
+    cout << elapsed.count() << ";" << boundary_point_indices.size() << ";";
     boundary_point_indices.clear();
-    eppstein(q, qlabels, boundary_point_indices);
-    sort(boundary_point_indices.begin(), boundary_point_indices.end());
-    cout << "Eppstein boundary points:\n";
-    for (long i = 0; i < boundary_point_indices.size(); i++) cout << boundary_point_indices[i] << " ";
-    cout << "\n";
-
+    auto start1 = chrono::high_resolution_clock::now();
+    eppstein(trimmed_dataset, labels, boundary_point_indices);
+    auto end1 = chrono::high_resolution_clock::now();
+    auto elapsed1 = chrono::duration_cast<chrono::milliseconds>(end1 - start1);
+    cout << elapsed1.count() << ";" << boundary_point_indices.size() << endl;
+    
     return 0;
 }
