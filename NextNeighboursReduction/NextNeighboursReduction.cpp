@@ -291,11 +291,19 @@ void dataset_portion(vector<vector<double>>& dataset, int n, vector<vector<doubl
 // class frequencies:
 // label:    0    1    2    3    4    5    6    7    8    9   10
 // freq:     0    0    0   20  163 1457 2198  880  175    5    0
-void consolidate_labels(vector<int>& labels) {
-    for (long i = 0; i < labels.size(); i++) {
-        if (labels[i] < 5) labels[i] = 1;
-        else if (labels[i] < 8) labels[i] = 2;
-        else labels[i] = 3;
+void consolidate_labels(vector<int>& labels, int consolidation_level) {
+    if (consolidation_level > 0) {
+        for (long i = 0; i < labels.size(); i++) {
+            if (consolidation_level == 1) {
+                if (labels[i] < 7) labels[i] = 1;
+                else labels[i] = 2;
+            }
+            else if (consolidation_level == 2) {
+                if (labels[i] < 8) labels[i] = 1;
+                else labels[i] = 2;
+            }
+                
+        }
     }
 }
 
@@ -307,27 +315,27 @@ int main(int argc, const char** argv) {
 
     int n = atoi(argv[1]);
     int d = atoi(argv[2]);
-    int consolidate = atoi(argv[3]);
+    int consolidation_level = atoi(argv[3]);
 
     vector<vector<double>> partial_dataset;
     dataset_portion(dataset, n, partial_dataset);
     vector<vector<double>> trimmed_dataset;
     trim_dataset_dimensionality(partial_dataset, d, trimmed_dataset);
-    if (consolidate) consolidate_labels(labels);
+    consolidate_labels(labels, consolidation_level);
 
     vector<int> boundary_point_indices;
-    cout << trimmed_dataset.size() << ";" << trimmed_dataset[0].size() << ";" << consolidate << ";";
+    cout << trimmed_dataset.size() << ";" << trimmed_dataset[0].size() << ";" << consolidation_level << ";";
     auto start = chrono::high_resolution_clock::now();
-    flores_velazco(trimmed_dataset, labels, boundary_point_indices);
+    eppstein(trimmed_dataset, labels, boundary_point_indices);
     auto end = chrono::high_resolution_clock::now();
     auto elapsed = chrono::duration_cast<chrono::milliseconds>(end - start);
-    cout << elapsed.count() << ";" << boundary_point_indices.size() << ";";
+    cout << elapsed.count() << ";";
     boundary_point_indices.clear();
-    auto start1 = chrono::high_resolution_clock::now();
-    eppstein(trimmed_dataset, labels, boundary_point_indices);
-    auto end1 = chrono::high_resolution_clock::now();
-    auto elapsed1 = chrono::duration_cast<chrono::milliseconds>(end1 - start1);
-    cout << elapsed1.count() << ";" << boundary_point_indices.size() << endl;
+    start = chrono::high_resolution_clock::now();
+    flores_velazco(trimmed_dataset, labels, boundary_point_indices);
+    end = chrono::high_resolution_clock::now();
+    elapsed = chrono::duration_cast<chrono::milliseconds>(end - start);
+    cout << elapsed.count() << ";" << boundary_point_indices.size() << endl;
     
     return 0;
 }
