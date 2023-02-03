@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <vector>
+#include <random>
 #include <chrono>
 
 #include "sdlp.hpp"
@@ -24,9 +25,16 @@ void read_dataset(vector<vector<double>>& dataset, vector<int>& labels) {
         while (getline(stream, token, ';')) {
             split_line.push_back(atof(token.c_str()));
         }
-        int class_label = split_line.back();
-        split_line.pop_back();
         dataset.push_back(split_line);
+    }
+
+    int seed = 1;
+    auto rng = std::default_random_engine(seed);
+    std::shuffle(dataset.begin(), dataset.end(), rng);
+
+    for (long i = 0; i < dataset.size(); i++) {
+        int class_label = dataset[i].back();
+        dataset[i].pop_back();
         labels.push_back(class_label);
     }
 }
@@ -312,7 +320,7 @@ int main(int argc, const char** argv) {
     vector<vector<double>> dataset;
     vector<int> labels;
     read_dataset(dataset, labels);
-
+    
     int n = atoi(argv[1]);
     int d = atoi(argv[2]);
     int consolidation_level = atoi(argv[3]);
