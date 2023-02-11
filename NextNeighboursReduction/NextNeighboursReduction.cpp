@@ -82,7 +82,7 @@ int find_extreme_point_from_witness_vector(vector<vector<double>>& dataset, vect
         if (!is_extreme[i] && i != witness_generated_from_index) {
             double prod = dot_product(witness, dataset[i]);
             // capture new maximum
-            if (prod > valmax + 1.0e-6) {
+            if (prod > valmax + eps) {
                 imax = i;
                 valmax = prod;
             }
@@ -106,9 +106,10 @@ void find_extreme_points(vector<vector<double>>& dataset, vector<int>& extreme_p
     is_extreme[imax] = true;
 
     for (long i = 0; i < dataset.size(); i++) {
-        witness.clear();   
-        if (!is_extreme[i]) {
-            bool feasible = find_witness_vector(dataset[i], extreme_points, witness);
+        bool feasible = true;
+        while (!is_extreme[i] && feasible) {
+            witness.clear();
+            feasible = find_witness_vector(dataset[i], extreme_points, witness);
             if (feasible) {
                 int imax = find_extreme_point_from_witness_vector(dataset, is_extreme, witness, i);
                 if (!is_extreme[imax]) extreme_points.push_back(dataset[imax]);
