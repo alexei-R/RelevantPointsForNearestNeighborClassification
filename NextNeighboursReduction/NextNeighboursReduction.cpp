@@ -83,6 +83,12 @@ double dot_product(vector<double>& p, vector<double>& q) {
     return res;
 }
 
+bool lexicographically_smaller(vector<double>& a, vector<double>& b) {
+    long i = 0;
+    while (fabs(a[i] - b[i]) < eps && i < a.size()-1) i++;
+    return a[i] < b[i];
+}
+
 int find_extreme_point_from_witness_vector(vector<vector<double>>& dataset, vector<bool>& is_extreme, vector<double>& witness, int witness_generated_from_index) {
     int imax = witness_generated_from_index;
     double valmax = dot_product(witness, dataset[witness_generated_from_index]);
@@ -90,8 +96,8 @@ int find_extreme_point_from_witness_vector(vector<vector<double>>& dataset, vect
     for (long i = 0; i < dataset.size(); i++) {
         if (!is_extreme[i] && i != witness_generated_from_index) {
             double prod = dot_product(witness, dataset[i]);
-            // capture new maximum
-            if (prod > valmax + eps) {
+            // capture new maximum or take the lexicographically smaller point in case of a tie (within epsilon interval)
+            if (prod >= valmax + eps || (fabs(prod - valmax) < eps && lexicographically_smaller(dataset[i], dataset[imax]))) {
                 imax = i;
                 valmax = prod;
             }
@@ -342,7 +348,7 @@ int main(int argc, const char** argv) {
     eppstein(trimmed_dataset, labels, boundary_point_indices);
     auto end = chrono::high_resolution_clock::now();
     auto elapsed = chrono::duration_cast<chrono::milliseconds>(end - start);
-    cout << elapsed.count() << ";";
+    cout << elapsed.count() << ";" << boundary_point_indices.size() << ";";
     boundary_point_indices.clear();
     start = chrono::high_resolution_clock::now();
     flores_velazco(trimmed_dataset, labels, boundary_point_indices);
