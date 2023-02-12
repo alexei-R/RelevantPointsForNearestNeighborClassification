@@ -13,7 +13,7 @@ with sns.axes_style('whitegrid'):
     fig.set_size_inches((5, 5))
     for label_consolidation_level in range(3):
         split = data[data['label_consolidation_level'] == label_consolidation_level]
-        plt.scatter(split['dimensionality'], split['boundary_points'] / split['dataset_size'], label=legend_labels[label_consolidation_level])
+        plt.scatter(split['dimensionality'], split['boundary_points_flores'] / split['dataset_size'], label=legend_labels[label_consolidation_level])
 
     ax.xaxis.set_ticks((3, 5, 7, 9, 11))
     plt.xlabel('$d$')
@@ -28,7 +28,7 @@ with sns.axes_style('whitegrid'):
     fig.set_size_inches((5, 5))
     for d in range(3, 12, 2):
         split = data[data['dimensionality'] == d]
-        plt.scatter(split['boundary_points'], split['execution_time_eppstein_ms'] / 1000.0, label='Eppstein, $d = ' + str(d) + '$')
+        plt.scatter(split['boundary_points_flores'], split['execution_time_eppstein_ms'] / 1000.0, label='Eppstein, $d = ' + str(d) + '$')
 
     plt.xlabel('$k$')
     plt.ylabel('$t$ in s')
@@ -43,7 +43,7 @@ with sns.axes_style('whitegrid'):
     fig.set_size_inches((5, 5))
     for d in range(3, 12, 2):
         split = data[data['dimensionality'] == d]
-        plt.scatter(split['boundary_points'], split['execution_time_flores_ms'] / 1000.0, label='Flores-Velazco, $d = ' + str(d) + '$')
+        plt.scatter(split['boundary_points_flores'], split['execution_time_flores_ms'] / 1000.0, label='Flores-Velazco, $d = ' + str(d) + '$')
 
     plt.xlabel('$k$')
     plt.ylabel('$t$ in s')
